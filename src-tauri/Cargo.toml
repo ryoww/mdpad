@@ -1,0 +1,20 @@
+[package]
+name = "mdpad"
+version = "0.1.0"
+description = "A fast, focused Markdown notepad for Windows"
+authors = ["ryoww"]
+edition = "2021"
+
+[lib]
+name = "mdpad_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-dialog = "=2.7.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Storage_FileSystem"] }

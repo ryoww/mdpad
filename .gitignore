@@ -1,0 +1,15 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/icons/android/
+src-tauri/icons/ios/
+src-tauri/icons/64x64.png
+src-tauri/icons/icon.icns
+src-tauri/icons/icon.png
+src-tauri/icons/Square*Logo.png
+src-tauri/icons/StoreLogo.png
+
+*.log
+.env
+.env.local
