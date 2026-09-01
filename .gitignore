@@ -13,3 +13,6 @@ src-tauri/icons/StoreLogo.png
 *.log
 .env
 .env.local
+
+# Claude Code のローカル設定 (端末ごとに異なるため共有しない)
+.claude/settings.local.json
