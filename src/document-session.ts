@@ -14,7 +14,7 @@ export class DocumentSession {
   }
 
   get displayPath(): string {
-    return this.path ?? "未保存の新規メモ";
+    return this.path ?? "";
   }
 
   get windowTitle(): string {

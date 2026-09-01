@@ -51,6 +51,44 @@ describe("MarkdownEditor document replacement", () => {
     expect(editor.adjustFontSize(-100)).toBe(10);
   });
 
+  it("switches between horizontal scrolling and line wrapping", () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const editor = new MarkdownEditor(parent, () => undefined);
+    editors.push(editor);
+    const content = internalView(editor).contentDOM;
+
+    expect(editor.isLineWrapping()).toBe(false);
+    expect(content.classList.contains("cm-lineWrapping")).toBe(false);
+
+    editor.setLineWrapping(true);
+    expect(editor.isLineWrapping()).toBe(true);
+    expect(content.classList.contains("cm-lineWrapping")).toBe(true);
+
+    editor.setContent("a long replacement document");
+    expect(editor.isLineWrapping()).toBe(true);
+    expect(content.classList.contains("cm-lineWrapping")).toBe(true);
+
+    editor.setLineWrapping(false);
+    expect(editor.isLineWrapping()).toBe(false);
+    expect(content.classList.contains("cm-lineWrapping")).toBe(false);
+  });
+
+  it("reports a bounded scroll position for preview handoff", () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const editor = new MarkdownEditor(parent, () => undefined);
+    editors.push(editor);
+    const scroller = internalView(editor).scrollDOM;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 100 },
+      scrollHeight: { configurable: true, value: 500 },
+    });
+    scroller.scrollTop = 200;
+
+    expect(editor.getScrollProgress()).toBe(0.5);
+  });
+
   it("keeps CRLF output while parsing every loaded document into real lines", () => {
     const parent = document.createElement("div");
     document.body.append(parent);
@@ -83,6 +121,20 @@ describe("MarkdownEditor document replacement", () => {
     expect(editor.getValue()).toBe("new document");
   });
 
+  it("exposes undo and redo for the Edit menu", () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const editor = new MarkdownEditor(parent, () => undefined);
+    editors.push(editor);
+    const view = internalView(editor);
+
+    view.dispatch({ changes: { from: 0, insert: "menu edit" }, userEvent: "input.type" });
+    expect(editor.undo()).toBe(true);
+    expect(editor.getValue()).toBe("");
+    expect(editor.redo()).toBe(true);
+    expect(editor.getValue()).toBe("menu edit");
+  });
+
   it("keeps edits dirty when they occur after a save snapshot was captured", () => {
     const parent = document.createElement("div");
     document.body.append(parent);
@@ -99,6 +151,22 @@ describe("MarkdownEditor document replacement", () => {
     editor.markSaved(saveSnapshot);
 
     expect(snapshots.at(-1)?.dirty).toBe(true);
+  });
+
+  it("opens the search panel without pulling focus back into the document", () => {
+    const parent = document.createElement("div");
+    document.body.append(parent);
+    const editor = new MarkdownEditor(parent, () => undefined);
+    editors.push(editor);
+    editor.setContent("# 設計メモ");
+
+    editor.openSearch();
+
+    // 検索欄そのものへのフォーカスは jsdom の input.select() が動かさないため確認できない。
+    // 本文へフォーカスが戻らないことだけを見れば、検索語が本文に入る回帰は捕まえられる。
+    expect(parent.querySelector(".cm-panel.cm-search [main-field]")).not.toBeNull();
+    expect(document.activeElement).not.toBe(internalView(editor).contentDOM);
+    expect(editor.getValue()).toBe("# 設計メモ");
   });
 
   it("prevents edits while a file operation is active", () => {

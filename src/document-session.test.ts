@@ -6,7 +6,7 @@ describe("DocumentSession", () => {
     const session = new DocumentSession();
 
     expect(session.displayName).toBe("無題.md");
-    expect(session.displayPath).toBe("未保存の新規メモ");
+    expect(session.displayPath).toBe("");
     expect(session.windowTitle).toBe("無題.md — mdpad");
     expect(session.kind).toBe("Markdown");
     expect(session.dirty).toBe(false);

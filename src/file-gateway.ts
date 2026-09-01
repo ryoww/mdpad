@@ -11,7 +11,6 @@ export interface SaveRequest {
 }
 
 export interface FileGateway {
-  readonly runtimeLabel: string;
   confirmDiscard(message: string): Promise<boolean>;
   open(): Promise<OpenedDocument | null>;
   openStartup(): Promise<OpenedDocument | null>;
@@ -53,8 +52,6 @@ const markdownFilters = [
 ];
 
 class TauriFileGateway implements FileGateway {
-  readonly runtimeLabel = "Tauri Desktop";
-
   async openStartup(): Promise<OpenedDocument | null> {
     const { invoke } = await import("@tauri-apps/api/core");
     const path = await invoke<string | null>("startup_file_path");
@@ -121,7 +118,6 @@ class TauriFileGateway implements FileGateway {
 }
 
 export class BrowserFileGateway implements FileGateway {
-  readonly runtimeLabel = "localhost Preview";
   private currentHandle: WritableFileHandle | null = null;
 
   async openStartup(): Promise<OpenedDocument | null> {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppController } from "./app-controller";
 import type { MarkdownEditor } from "./editor";
 import type { FileGateway } from "./file-gateway";
+import { PREVIEW_CHARACTER_LIMIT } from "./markdown-preview";
 
 const controllers: AppController[] = [];
 
@@ -26,19 +27,43 @@ function createAppRoot(): HTMLElement {
     <div id="app">
       <span id="document-name"></span>
       <span id="document-path"></span>
-      <span id="dirty-dot"></span>
-      <button type="button" data-action="new"></button>
-      <button type="button" data-action="open"></button>
-      <button id="save-button" type="button" data-action="save"></button>
-      <button type="button" data-action="save-as"></button>
-      <button type="button" data-action="find"></button>
-      <div id="editor"></div>
-      <span id="save-status"><span></span> 保存済み</span>
-      <span id="runtime-status"></span>
-      <span id="character-status"></span>
+      <div data-menu-root="file">
+        <button type="button" data-menu-trigger="file" aria-controls="file-menu" aria-expanded="false">ファイル</button>
+        <div id="file-menu" hidden>
+          <button type="button" data-action="new"></button>
+          <button type="button" data-action="open"></button>
+          <button id="save-button" type="button" data-action="save"></button>
+          <button type="button" data-action="save-as"></button>
+        </div>
+      </div>
+      <div data-menu-root="edit">
+        <button type="button" data-menu-trigger="edit" aria-controls="edit-menu" aria-expanded="false">編集</button>
+        <div id="edit-menu" hidden>
+          <button type="button" data-action="undo"></button>
+          <button type="button" data-action="redo"></button>
+          <button type="button" data-action="find"></button>
+        </div>
+      </div>
+      <div data-menu-root="view">
+        <button type="button" data-menu-trigger="view" aria-controls="view-menu" aria-expanded="false">表示</button>
+        <div id="view-menu" hidden>
+          <button id="preview-button" type="button" data-action="preview" aria-pressed="false"><span>プレビュー</span></button>
+          <button id="line-wrap-button" type="button" data-action="line-wrap" aria-pressed="false"><span>行を折り返す</span></button>
+          <button type="button" data-action="zoom-in"></button>
+          <button type="button" data-action="zoom-out"></button>
+        </div>
+      </div>
+      <section id="editor-region"><div id="editor"></div></section>
+      <section id="preview-region" hidden>
+        <article id="preview" tabindex="0"></article>
+        <div id="preview-empty" hidden><strong></strong><span></span></div>
+      </section>
+      <span id="save-status" hidden>未保存</span>
+      <span id="character-status" hidden></span>
       <span id="cursor-status"></span>
-      <span id="line-ending-status"></span>
-      <span id="document-kind-status"></span>
+      <span id="line-ending-status" hidden></span>
+      <span id="document-kind-status" hidden></span>
+      <span id="line-wrap-status" hidden>折り返し</span>
       <div id="toast"></div>
     </div>
   `;
@@ -92,7 +117,6 @@ describe("AppController startup", () => {
       path: "C:\\notes\\startup.md",
     }));
     const files: FileGateway = {
-      runtimeLabel: "Tauri Desktop",
       confirmDiscard: vi.fn(async () => true),
       open: vi.fn(async () => null),
       openStartup,
@@ -126,5 +150,208 @@ describe("AppController startup", () => {
       "C:\\notes\\startup.md",
     );
     expect(root.querySelector<HTMLElement>(".cm-content")!.textContent).toBe("startup content");
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        "plugin:window|set_title",
+        { label: "main", value: "C:\\notes\\startup.md — mdpad" },
+        undefined,
+      ),
+    );
+  });
+
+  it("opens one top menu at a time and closes it with Escape", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => null),
+      save: vi.fn(async () => null),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    const fileTrigger = root.querySelector<HTMLButtonElement>('[data-menu-trigger="file"]')!;
+    const editTrigger = root.querySelector<HTMLButtonElement>('[data-menu-trigger="edit"]')!;
+    const fileMenu = root.querySelector<HTMLElement>("#file-menu")!;
+    const editMenu = root.querySelector<HTMLElement>("#edit-menu")!;
+
+    fileTrigger.click();
+    expect(fileTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(fileMenu.hidden).toBe(false);
+
+    editTrigger.click();
+    expect(fileTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(fileMenu.hidden).toBe(true);
+    expect(editTrigger.getAttribute("aria-expanded")).toBe("true");
+    expect(editMenu.hidden).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(editTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(editMenu.hidden).toBe(true);
+    expect(document.activeElement).toBe(editTrigger);
+
+    const editor = (controller as unknown as { editor: MarkdownEditor }).editor;
+    const view = (editor as unknown as { view: EditorView }).view;
+    view.dispatch({ changes: { from: 0, insert: "undo from menu" }, userEvent: "input.type" });
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { cancelable: true, ctrlKey: true, key: "z" }),
+    );
+    expect(editor.getValue()).toBe("");
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { cancelable: true, ctrlKey: true, key: "y" }),
+    );
+    expect(editor.getValue()).toBe("undo from menu");
+
+    const undo = vi.spyOn(editor, "undo");
+    root.querySelector<HTMLButtonElement>('[data-action="find"]')!.click();
+    const searchInput = root.querySelector<HTMLInputElement>(".cm-panel.cm-search input")!;
+    searchInput.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        key: "z",
+      }),
+    );
+    expect(undo).not.toHaveBeenCalled();
+  });
+
+  it("switches between horizontal scrolling and line wrapping", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => null),
+      save: vi.fn(async () => null),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    const editor = (controller as unknown as { editor: MarkdownEditor }).editor;
+    const button = root.querySelector<HTMLButtonElement>("#line-wrap-button")!;
+    const status = root.querySelector<HTMLElement>("#line-wrap-status")!;
+
+    expect(editor.isLineWrapping()).toBe(false);
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(status.hidden).toBe(true);
+
+    button.click();
+    expect(editor.isLineWrapping()).toBe(true);
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(button.classList.contains("menu-item--active")).toBe(true);
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toBe("折り返し");
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { altKey: true, cancelable: true, key: "z" }),
+    );
+    expect(editor.isLineWrapping()).toBe(false);
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(status.hidden).toBe(true);
+  });
+
+  it("switches to a rendered and sanitized Markdown preview", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({
+        content: '# Preview\n\n**bold**<script>alert("unsafe")</script>',
+        path: "preview.md",
+      })),
+      save: vi.fn(async () => null),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+
+    root.querySelector<HTMLButtonElement>("#preview-button")!.click();
+
+    expect(root.querySelector<HTMLElement>("#editor-region")!.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>("#preview-region")!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>("#preview")!.innerHTML).toContain(
+      "<h1>Preview</h1>",
+    );
+    expect(root.querySelector<HTMLElement>("#preview")!.innerHTML).toContain(
+      "<strong>bold</strong>",
+    );
+    expect(root.querySelector<HTMLElement>("#preview")!.innerHTML).not.toContain("<script");
+    expect(root.querySelector<HTMLButtonElement>("#preview-button")!.getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(root.querySelector<HTMLButtonElement>("#preview-button")!.textContent).toBe(
+      "プレビュー",
+    );
+  });
+
+  it("previews text documents without interpreting Markdown", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({ content: "# Plain text", path: "notes.txt" })),
+      save: vi.fn(async () => null),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+
+    root.querySelector<HTMLButtonElement>("#preview-button")!.click();
+
+    expect(root.querySelector<HTMLElement>("#preview")!.innerHTML).not.toContain("<h1>");
+    expect(root.querySelector<HTMLElement>(".plain-text-preview")!.textContent).toBe(
+      "# Plain text",
+    );
+  });
+
+  it("does not synchronously render oversized documents", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({
+        content: "x".repeat(PREVIEW_CHARACTER_LIMIT + 1),
+        path: "large.md",
+      })),
+      save: vi.fn(async () => null),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    const editor = (controller as unknown as { editor: MarkdownEditor }).editor;
+    const getValue = vi.spyOn(editor, "getValue");
+
+    root.querySelector<HTMLButtonElement>("#preview-button")!.click();
+
+    expect(getValue).not.toHaveBeenCalled();
+    expect(root.querySelector<HTMLElement>("#preview")!.childElementCount).toBe(0);
+    expect(root.querySelector<HTMLElement>("#preview-empty")!.hidden).toBe(false);
+    expect(root.querySelector<HTMLElement>("#preview-empty strong")!.textContent).toContain(
+      "サイズ",
+    );
+  });
+
+  it("re-renders when Save As changes the document between Markdown and text", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({ content: "# Same content", path: "notes.md" })),
+      save: vi.fn(async () => "notes.txt"),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    root.querySelector<HTMLButtonElement>("#preview-button")!.click();
+    expect(root.querySelector<HTMLElement>("#preview h1")!.textContent).toBe("Same content");
+
+    root.querySelector<HTMLButtonElement>('[data-action="save-as"]')!.click();
+
+    await vi.waitFor(() =>
+      expect(root.querySelector<HTMLElement>(".plain-text-preview")?.textContent).toBe(
+        "# Same content",
+      ),
+    );
+    expect(root.querySelector<HTMLElement>("#preview h1")).toBeNull();
   });
 });
