@@ -494,11 +494,8 @@ export class AppController {
     const saveStatus = this.element<HTMLElement>("#save-status");
 
     const documentName = this.element<HTMLElement>("#document-name");
-    const documentPath = this.element<HTMLElement>("#document-path");
     documentName.textContent = this.documentSession.displayName;
     documentName.title = this.documentSession.path ?? this.documentSession.displayName;
-    documentPath.textContent = this.documentSession.displayPath;
-    documentPath.title = this.documentSession.displayPath;
     this.element<HTMLElement>("#save-button").classList.toggle("menu-item--dirty", dirty);
     this.element<HTMLElement>("#cursor-status").textContent =
       `行 ${this.snapshot.line}、列 ${this.snapshot.column}`;

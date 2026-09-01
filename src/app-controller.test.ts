@@ -26,7 +26,6 @@ function createAppRoot(): HTMLElement {
   document.body.innerHTML = `
     <div id="app">
       <span id="document-name"></span>
-      <span id="document-path"></span>
       <div data-menu-root="file">
         <button type="button" data-menu-trigger="file" aria-controls="file-menu" aria-expanded="false">ファイル</button>
         <div id="file-menu" hidden>
@@ -146,9 +145,7 @@ describe("AppController startup", () => {
     expect(root.querySelector<HTMLElement>(".cm-content")!.getAttribute("contenteditable")).toBe(
       "true",
     );
-    expect(root.querySelector<HTMLElement>("#document-path")!.textContent).toBe(
-      "C:\\notes\\startup.md",
-    );
+    expect(root.querySelector<HTMLElement>("#document-name")!.textContent).toBe("startup.md");
     expect(root.querySelector<HTMLElement>(".cm-content")!.textContent).toBe("startup content");
     await vi.waitFor(() =>
       expect(invoke).toHaveBeenCalledWith(

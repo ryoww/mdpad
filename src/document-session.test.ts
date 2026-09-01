@@ -6,7 +6,6 @@ describe("DocumentSession", () => {
     const session = new DocumentSession();
 
     expect(session.displayName).toBe("無題.md");
-    expect(session.displayPath).toBe("");
     expect(session.windowTitle).toBe("無題.md — mdpad");
     expect(session.kind).toBe("Markdown");
     expect(session.dirty).toBe(false);
@@ -18,7 +17,6 @@ describe("DocumentSession", () => {
     session.load("C:\\notes\\release.md");
 
     expect(session.displayName).toBe("release.md");
-    expect(session.displayPath).toBe("C:\\notes\\release.md");
     expect(session.windowTitle).toBe("C:\\notes\\release.md — mdpad");
   });
 

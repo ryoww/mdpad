@@ -13,10 +13,6 @@ export class DocumentSession {
     return parts.at(-1) || "無題.md";
   }
 
-  get displayPath(): string {
-    return this.path ?? "";
-  }
-
   get windowTitle(): string {
     const documentIdentifier = this.path ?? this.displayName;
     return `${this.dirty ? "● " : ""}${documentIdentifier} — mdpad`;
