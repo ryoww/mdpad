@@ -331,6 +331,58 @@ describe("AppController startup", () => {
     );
   });
 
+  it("restores focus after saving only once the editor accepts input again", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({ content: "# 設計メモ", path: "C:\\notes\\memo.md" })),
+      save: vi.fn(async () => "C:\\notes\\memo.md"),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    const content = root.querySelector<HTMLElement>(".cm-content")!;
+
+    // jsdom は contenteditable="false" の要素にも focus() を通すため、
+    // activeElement を見ても実ブラウザの失敗を再現できない。ブラウザが
+    // フォーカス要求を捨てる条件そのもの、つまり要求した時点で入力を
+    // 受け付けられる状態だったかを記録して確かめる。
+    const editableWhenFocused: (string | null)[] = [];
+    vi.spyOn(content, "focus").mockImplementation(() => {
+      editableWhenFocused.push(content.getAttribute("contenteditable"));
+    });
+
+    root.querySelector<HTMLButtonElement>('[data-action="save"]')!.click();
+
+    await vi.waitFor(() => expect(files.save).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(editableWhenFocused.length).toBeGreaterThan(0));
+    expect(editableWhenFocused).not.toContain("false");
+  });
+
+  it("does not pull focus into the hidden editor when saving from the preview", async () => {
+    const files: FileGateway = {
+      confirmDiscard: vi.fn(async () => true),
+      open: vi.fn(async () => null),
+      openStartup: vi.fn(async () => ({ content: "# 設計メモ", path: "C:\\notes\\memo.md" })),
+      save: vi.fn(async () => "C:\\notes\\memo.md"),
+    };
+    const root = createAppRoot();
+    const controller = new AppController(root, files);
+    controllers.push(controller);
+    await controller.start();
+    const content = root.querySelector<HTMLElement>(".cm-content")!;
+    const focusRequests = vi.spyOn(content, "focus").mockImplementation(() => undefined);
+    root.querySelector<HTMLButtonElement>("#preview-button")!.click();
+    focusRequests.mockClear();
+
+    root.querySelector<HTMLButtonElement>('[data-action="save"]')!.click();
+
+    await vi.waitFor(() => expect(files.save).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(root.dataset.busy).toBe("false"));
+    expect(focusRequests).not.toHaveBeenCalled();
+  });
+
   it("re-renders when Save As changes the document between Markdown and text", async () => {
     const files: FileGateway = {
       confirmDiscard: vi.fn(async () => true),

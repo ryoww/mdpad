@@ -239,8 +239,8 @@ export class AppController {
       }
 
       this.loadDocument(opened);
-      this.editor.focus();
     });
+    this.restoreEditorFocus();
   }
 
   private loadDocument(opened: { content: string; path: string }): void {
@@ -268,11 +268,22 @@ export class AppController {
       this.documentSession.markSaved(path);
       this.editor.markSaved(editorSnapshot);
       this.render();
-      this.editor.focus();
       this.showToast(`${this.documentSession.displayName} を保存しました`);
       saved = true;
     });
+    this.restoreEditorFocus();
     return saved;
+  }
+
+  // busy 中のエディターは contenteditable="false" で tabindex も持たないため、
+  // その状態で focus() を呼んでも実ブラウザでは捨てられ、編集可能に戻しても
+  // フォーカスは返ってこない。復帰は setBusy(false) の後に行う必要がある。
+  private restoreEditorFocus(): void {
+    if (this.previewVisible) {
+      return;
+    }
+
+    this.editor.focus();
   }
 
   private async canReplaceDocument(): Promise<boolean> {
