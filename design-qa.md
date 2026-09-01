@@ -2,10 +2,10 @@
 
 ## Comparison target
 
-- Source visual truth: `C:\Users\ryo\AppData\Local\Temp\codex-clipboard-794fc0c7-fe78-4a42-85ce-3071524b095d.png`
-- Secondary title-bar reference: `C:\Users\ryo\AppData\Local\Temp\codex-clipboard-b2217dc6-5121-4ff0-890a-4e247eab86ed.png`
-- Implementation capture: `C:\Users\ryo\Documents\mdpad\design-qa-implementation.png`
-- Side-by-side evidence: `C:\Users\ryo\Documents\mdpad\design-qa-comparison.png`
+- Source visual truth: クリップボード経由で受け取った一時ファイル。リポジトリ外に置かれ、すでに削除されているため参照できない
+- Secondary title-bar reference: 同上（タイトルバー確認用に別途受け取った一時ファイル）
+- Implementation capture: `design-qa-implementation.png`
+- Side-by-side evidence: `design-qa-comparison.png`
 - State: dark theme, new unsaved document, all menus closed, editor visible
 - Browser viewport: 785 × 839 CSS px, device pixel ratio 1
 - Compared crop: 319 × 43 CSS px and 319 × 43 image px
